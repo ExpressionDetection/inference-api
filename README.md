@@ -6,4 +6,4 @@
 
 * Install project dependencies: `cd src && go mod tidy`
 
-* Run the project: `go run main.go`
+* Run the project: `go run api.go`
