@@ -2,28 +2,25 @@ package main
 
 import (
 	"os"
-	"log"
-	"github.com/joho/godotenv"
 	"github.com/pusher/pusher-http-go"
 )
 
 func main(){
 
-	// Loading .env vars file
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file!")
-		return
-	}
-
 	pusherClient := pusher.Client{
-		AppID: os.Getenv("AppID"),
-		Key: os.Getenv("Key"),
-		Secret: os.Getenv("Secret"),
-		Cluster: os.Getenv("Cluster"),
-		Secure: os.Getenv("Secure") == "true",
+		AppID: os.Getenv("PUSHER_APP_ID"),
+		Key: os.Getenv("PUSHER_KEY"),
+		Secret: os.Getenv("PUSHER_SECRET"),
+		Cluster: os.Getenv("PUSHER_CLUSTER"),
+		Secure: os.Getenv("PUSHER_SECURE") == "true",
 	}
 
 	data := map[string]string{"message": "hello world"}
 	pusherClient.Trigger("my-channel", "my-event", data)
+
+
+	
+	for {
+		
+	}
 }

@@ -1,6 +1,10 @@
-# Expression Detection API
+# Inference API
 
-## Setup
+## Docker setup instructions
+
+* Follow the steps inside the [compose](https://github.com/ExpressionDetection/compose) repository
+
+## Setup instructions
 
 * Install [Go lang](https://go.dev/)
 
