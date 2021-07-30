@@ -23,4 +23,6 @@ if [ $RELOAD_APP_ON_FILE_CHANGE == "true" ]
         inotifywait -e close_write -r `pwd`
         kill $PID
     done
+  else
+    go run /app/src/api.go
 fi
