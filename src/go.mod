@@ -1,4 +1,4 @@
-module github.com/ExpressionDetection/api
+module github.com/ExpressionDetection/inference-api
 
 go 1.16
 
