@@ -1,22 +1,18 @@
-FROM golang:1.16.6
-
-SHELL ["/bin/bash", "-c"]
+FROM node:16-alpine3.14
 
 ENV RELOAD_APP_ON_FILE_CHANGE=true
 ENV API_PORT=3001
-ENV PUSHER_APP_ID=1238509
-ENV PUSHER_APP_KEY=adbeaa1d731202934e15
-ENV PUSHER_APP_SECRET=6d5ed969964e6650f3f0
-ENV PUSHER_APP_CLUSTER=us3
-ENV PUSHER_APP_SECURE=1
-
-RUN echo export PUSHER_CHANNELS_ENCRYPTION_KEY="$(openssl rand -base64 24)" >> ~/.bashrc
+ENV REDIS_PORT=6379
+ENV REDIS_HOST=inference-redis
+ENV FRONT_END_PROTOCOL=http
+ENV FRONT_END_HOST=localhost
+ENV FRONT_END_PORT=3000
 
 # Install prerequisites
-RUN apt-get update && \
-    apt-get install -y curl && \
-    curl -sSfL https://raw.githubusercontent.com/cosmtrek/air/master/install.sh | sh -s -- -b $(go env GOPATH)/bin && \
-    echo "alias air='$(go env GOPATH)/bin/air'" > ~/.bashrc
+RUN apk update && \
+    apk add bash curl git
+
+SHELL ["/bin/bash", "-c"]
 
 WORKDIR /app
 

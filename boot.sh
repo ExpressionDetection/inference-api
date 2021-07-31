@@ -1,14 +1,12 @@
 #!/bin/bash
 
-source ~/.bashrc
-
 # Install dependencies during container boot
-cd /app/src && go mod tidy
+cd /app/src && yarn install
 
 if [ $RELOAD_APP_ON_FILE_CHANGE == "true" ]
   then
     # Reload server whenever a file is saved
-    cd /app/src && air -c .air.toml
+    cd /app/src && yarn run dev
   else
-    cd /app/src && go run api.go
+    cd /app/src && yarn run dev
 fi
