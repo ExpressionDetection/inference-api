@@ -1,104 +1,93 @@
 package main
-    
+
 import (
-	"os"
-	"flag"
-	"fmt"
-	"io/ioutil"
 	"log"
-	"context"
+	"strconv"
+	"os"
+	"fmt"
 	"net/http"
-	"strconv" 
-	pusher "github.com/pusher/pusher-http-go"
+
+	"github.com/googollee/go-socket.io/engineio"
+	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/googollee/go-socket.io/engineio/transport/polling"
+	"github.com/googollee/go-socket.io/engineio/transport/websocket"
+
+	"github.com/kataras/iris/v12"
+
+	socketio "github.com/googollee/go-socket.io"
 )
 
-func main() { 
-
-	apiPort, _ := strconv.Atoi(os.Getenv("API_PORT"))
-	port := flag.Int("http.port",  apiPort, "Port to run HTTP service on")
-
-	flag.Parse()
-
-	appID := os.Getenv("PUSHER_APP_ID") 
-	appKey := os.Getenv("PUSHER_APP_KEY")
-	appSecret := os.Getenv("PUSHER_APP_SECRET")
-	appCluster := os.Getenv("PUSHER_APP_CLUSTER")
-	appIsSecure := os.Getenv("PUSHER_APP_SECURE")
-
-	var isSecure bool
-	if appIsSecure == "1" {
-		isSecure = true
-	}
-
-	client := &pusher.Client{
-			AppID:               appID,
-			Key:                 appKey,
-			Secret:              appSecret,
-			Cluster:             appCluster,
-			Secure:              isSecure,
-			EncryptionMasterKey: os.Getenv("PUSHER_CHANNELS_ENCRYPTION_KEY"),
-	}
-
-	
-
-	mux := http.NewServeMux()
-    server := http.Server{Addr: fmt.Sprintf(":%d", *port), Handler: mux}
-	ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
-
-    mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-         
-    })
-
-	mux.Handle("/pusher/auth", authenticateUsers(client))  
-
-    go func() {
-        if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-            log.Fatal(err)  
-        }
-    }()
-
-	log.Printf("Running server on port %d", *port) 
-
-    select {
-    case <-ctx.Done():
-        // Shutdown the server when the context is canceled
-        server.Shutdown(ctx)
-    }
-    log.Printf("Finished")
-
+// Easier to get running with CORS. Thanks for help @Vindexus and @erkie
+var allowOriginFunc = func(r *http.Request) bool {
+	return true
 }
 
-func authenticateUsers(client *pusher.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Handle CORS
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+func main() {
+	apiPort, _ := strconv.Atoi(os.Getenv("API_PORT"))
 
-		if r.Method == http.MethodOptions {
-			return
+	app := iris.New()
+
+	opts := &engineio.Options{
+		Transports: []transport.Transport{
+			&polling.Transport{
+				CheckOrigin: allowOriginFunc,
+			},
+			&websocket.Transport{
+				CheckOrigin: allowOriginFunc,
+			},
+		},
+	}
+
+	server := socketio.NewServer(opts)
+
+	server.OnConnect("/", func(s socketio.Conn) error {
+		s.SetContext("")
+		log.Println("connected:", s.ID())
+		return nil
+	})
+
+	server.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
+		log.Println("notice:", msg)
+		s.Emit("reply", "have "+msg)
+	})
+
+	server.OnEvent("/chat", "msg", func(s socketio.Conn, msg string) string {
+		s.SetContext(msg)
+		return "recv " + msg
+	})
+
+	server.OnEvent("/", "bye", func(s socketio.Conn) string {
+		last := s.Context().(string)
+		s.Emit("bye", last)
+		s.Close()
+		return last
+	})
+
+	server.OnError("/", func(s socketio.Conn, e error) {
+		log.Println("meet error:", e)
+	})
+
+	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
+		log.Println("closed", reason)
+	})
+
+	go func() {
+		if err := server.Serve(); err != nil {
+			log.Fatalf("socketio listen error: %s\n", err)
 		}
+	}()
+	defer server.Close()
 
-		params, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+	app.HandleMany("GET POST", "/socket.io/{any:path}", iris.FromStd(server))
+	// app.HandleDir("/", "../asset")
+	
+	log.Printf("Runing server at port: %d", apiPort)
 
-		presenceData := pusher.MemberData{
-				UserID: "10",
-				UserInfo: map[string]string{
-						"random": "random", 
-				},
-		}
-
-		response, err := client.AuthenticatePresenceChannel(params, presenceData)
-		if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-		}
-
-		w.Write(response)
+	if err := app.Run(
+		iris.Addr(fmt.Sprintf(":%d", apiPort)),
+		iris.WithoutPathCorrection,
+		iris.WithoutServerError(iris.ErrServerClosed),
+	); err != nil {
+		log.Fatal("Failed to run app: ", err) 
 	}
 }
