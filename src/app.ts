@@ -12,6 +12,7 @@ const io = require("socket.io")(httpServer, {
 });
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
+
 // Suggested options for similarity to existing grpc.load behavior
 const packageDefinition = protoLoader.loadSync(
     process.env.GRPC_PROTO_PATH,
@@ -24,15 +25,17 @@ const packageDefinition = protoLoader.loadSync(
     }
 );
 const protoDescriptor = grpc.loadPackageDefinition(packageDefinition);
-// The protoDescriptor object has the full package hierarchy
-const modelService = protoDescriptor.model;
-const clientModel1 = new modelService.RouteGuide(`${process.env.MODEL_1_HOST}:${process.env.MODEL_1_PORT}`,
-                                       grpc.credentials.createInsecure());
 
+// The protoDescriptor object has the full package hierarchy
+const modelService = protoDescriptor.Model;
+const clientModel1 = new modelService(`${process.env.MODEL_1_HOST}:${process.env.MODEL_1_PORT}`,
+                                       grpc.credentials.createInsecure());
+                                      
 const { setupWorker } = require("@socket.io/sticky");
 import * as crypto from "crypto";
 
 const randomId = () => crypto.randomBytes(8).toString("hex");
+const frameHeaderLength = "data:image/png;base64,".length
 
 const { RedisSessionStore } = require("./sessionStore");
 const sessionStore = new RedisSessionStore(redisClient);
@@ -69,20 +72,32 @@ io.on("connection", async (socket: any) => {
   // join the "userID" room
   socket.join(socket.userID);
 
-  socket.on("predictionRequest", ({ payload: { uuid, frame } }: any) => {
-    socket.emit("predictionResponse", {
-      uuid,
-      models: [{
-        name: "Model 1",
-        labels: ["happy", "sad", "angry"],
-        probabilities: [0.2, 0.3, 0.5]
-      }],
-      aggregatedResult: {
-        name: "Result",
-        labels: ["happy", "sad", "angry"],
-        probabilities: [0.5, 0.1, 0.4]
-      }
-    }); 
+  socket.on("predictionRequest", ({ payload: { uuid, frame: base64frame } }: any) => {
+    new Promise((resolve: any, reject: any) => {
+      base64frame = base64frame.substring(frameHeaderLength); // Removing data header
+      base64frame = Buffer.from(base64frame, 'base64');
+
+      clientModel1.Inference({image: base64frame}, (err: any, data: any) => {
+        // console.log("Model 1 response data: ", data);
+        resolve();
+      })
+
+      // Sample response, using this for now
+      socket.emit("predictionResponse", {
+        uuid,
+        models: [{
+          name: "Model 1",
+          labels: ["happy", "sad", "angry"],
+          probabilities: [0.2, 0.3, 0.5]
+        }],
+        aggregatedResult: {
+          name: "Result",
+          labels: ["happy", "sad", "angry"],
+          probabilities: [0.5, 0.1, 0.4]
+        }
+      }); 
+    })
+    
   });
 
   // notify users upon disconnection
