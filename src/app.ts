@@ -27,17 +27,11 @@ io.use(async (socket: any, next: any) => {
     if (session) {
       socket.sessionID = sessionID; 
       socket.userID = session.userID;
-      socket.username = session.username;  
       return next();
     }
   }
-  const username = socket.handshake.auth.username;
-  if (!username) {
-    return next(new Error("invalid username"));
-  }
   socket.sessionID = randomId();
   socket.userID = randomId();
-  socket.username = username;
   next();
 });
 
@@ -45,7 +39,6 @@ io.on("connection", async (socket: any) => {
   // persist session
   sessionStore.saveSession(socket.sessionID, {
     userID: socket.userID,
-    username: socket.username,
     connected: true,
   });
 
@@ -58,10 +51,20 @@ io.on("connection", async (socket: any) => {
   // join the "userID" room
   socket.join(socket.userID);
 
-  socket.on("predictionRequest", ({ frame }: any) => {
-    console.log("DEBUG")
-    console.log(frame)
-    socket.emit("predictionResponse", {message: "Hello"}); 
+  socket.on("predictionRequest", ({ payload: { uuid, frame } }: any) => {
+    socket.emit("predictionResponse", {
+      uuid,
+      models: [{
+        name: "Model 1",
+        labels: ["happy", "sad", "angry"],
+        probabilities: [0.2, 0.3, 0.5]
+      }],
+      aggregatedResult: {
+        name: "Result",
+        labels: ["happy", "sad", "angry"],
+        probabilities: [0.5, 0.1, 0.4]
+      }
+    }); 
   });
 
   // notify users upon disconnection
@@ -72,7 +75,6 @@ io.on("connection", async (socket: any) => {
       // update the connection status of the session
       sessionStore.saveSession(socket.sessionID, {
         userID: socket.userID,
-        username: socket.username,
         connected: false,
       });
     }
