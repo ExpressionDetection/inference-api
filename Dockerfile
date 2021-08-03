@@ -7,6 +7,9 @@ ENV REDIS_HOST=inference-redis
 ENV FRONT_END_PROTOCOL=http
 ENV FRONT_END_HOST=localhost
 ENV FRONT_END_PORT=3000
+ENV GRPC_PROTO_PATH=/grcp-pkg/grcppkg/protos/server.proto
+ENV MODEL_1_HOST=model1
+ENV MODEL_1_PORT=50051
 
 # Install prerequisites
 RUN apk update && \

@@ -12,13 +12,13 @@
 
 * You can spin the server by running: 
     * ```bash
-        API_PORT=3001 \
-        RELOAD_APP_ON_FILE_CHANGE=true \
-        PUSHER_APP_ID=1238509 \
-        PUSHER_APP_KEY=adbeaa1d731202934e15 \
-        PUSHER_APP_SECRET=6d5ed969964e6650f3f0 \
-        PUSHER_APP_CLUSTER=us3 \
-        PUSHER_APP_SECURE=1 \
-        PUSHER_CHANNELS_ENCRYPTION_KEY="$(openssl rand -base64 24)" && \
+        RELOAD_APP_ON_FILE_CHANGE=true && \
+        API_PORT=3001 && \
+        REDIS_PORT=6379 && \
+        REDIS_HOST=inference-redis && \
+        FRONT_END_PROTOCOL=http && \
+        FRONT_END_HOST=localhost && \
+        FRONT_END_PORT=3000 && \
+        GRPC_PROTO_PATH=/grcp-pkg/grcppkg/protos/server.proto && \
         yarn run dev
         ```

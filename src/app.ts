@@ -10,6 +10,24 @@ const io = require("socket.io")(httpServer, {
     subClient: redisClient.duplicate(),
   }),
 });
+const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
+// Suggested options for similarity to existing grpc.load behavior
+const packageDefinition = protoLoader.loadSync(
+    process.env.GRPC_PROTO_PATH,
+    {
+      keepCase: true,
+      longs: String,
+      enums: String,
+      defaults: true,
+      oneofs: true
+    }
+);
+const protoDescriptor = grpc.loadPackageDefinition(packageDefinition);
+// The protoDescriptor object has the full package hierarchy
+const modelService = protoDescriptor.model;
+const clientModel1 = new modelService.RouteGuide(`${process.env.MODEL_1_HOST}:${process.env.MODEL_1_PORT}`,
+                                       grpc.credentials.createInsecure());
 
 const { setupWorker } = require("@socket.io/sticky");
 import * as crypto from "crypto";
