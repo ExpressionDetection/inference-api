@@ -30,7 +30,9 @@ const protoDescriptor = grpc.loadPackageDefinition(packageDefinition);
 const modelService = protoDescriptor.Model;
 const clientModel1 = new modelService(`${process.env.MODEL_1_HOST}:${process.env.MODEL_1_PORT}`,
                                        grpc.credentials.createInsecure());
-                                      
+const clientModel2 = new modelService(`${process.env.MODEL_2_HOST}:${process.env.MODEL_2_PORT}`,
+                                       grpc.credentials.createInsecure());
+
 const { setupWorker } = require("@socket.io/sticky");
 import * as crypto from "crypto";
 
@@ -73,31 +75,50 @@ io.on("connection", async (socket: any) => {
   socket.join(socket.userID);
 
   socket.on("predictionRequest", ({ payload: { uuid, frame: base64frame } }: any) => {
-    new Promise((resolve: any, reject: any) => {
-      base64frame = base64frame.substring(frameHeaderLength); // Removing data header
-      base64frame = Buffer.from(base64frame, 'base64');
+    base64frame = base64frame.substring(frameHeaderLength); // Removing data header
+    base64frame = Buffer.from(base64frame, 'base64');
 
+    const model1Promise = new Promise((resolve: any, reject: any) => {
       clientModel1.Inference({image: base64frame}, (err: any, data: any) => {
-        // console.log("Model 1 response data: ", data);
-        resolve();
+        const prediction = JSON.parse(data.prediction)
+        prediction.name = "Model 1"
+        if (err) reject(err);
+        resolve(prediction);
       })
+    })
 
+    const model2Promise = new Promise((resolve: any, reject: any) => {
+      clientModel2.Inference({image: base64frame}, (err: any, data: any) => {
+        const prediction = JSON.parse(data.prediction)
+        prediction.name = "Model 2"
+        if (err) reject(err);
+        resolve(prediction);
+      })
+    })
+
+    Promise.all([model1Promise, model2Promise]).then((predictions: any) => {
+      const aggregatedResult : any = {
+        name: "Result",
+        labels: predictions[0].labels,
+        probabilities: [],
+        topProbabilityIndex: 0
+      }
+      let greatestProbability = 0
+      for (let i = 0; i < predictions[0].probabilities.length; i++) {
+        const probabilitySum = (predictions[0].probabilities[i] + predictions[1].probabilities[i]) / predictions.length;
+        if (probabilitySum > greatestProbability) { 
+          greatestProbability = probabilitySum
+          aggregatedResult.topProbabilityIndex = i
+        }
+        aggregatedResult.probabilities.push(probabilitySum)
+      }
       // Sample response, using this for now
       socket.emit("predictionResponse", {
         uuid,
-        models: [{
-          name: "Model 1",
-          labels: ["happy", "sad", "angry"],
-          probabilities: [0.2, 0.3, 0.5]
-        }],
-        aggregatedResult: {
-          name: "Result",
-          labels: ["happy", "sad", "angry"],
-          probabilities: [0.5, 0.1, 0.4]
-        }
+        models: predictions,
+        aggregatedResult: aggregatedResult
       }); 
-    })
-    
+    }).catch(err => console.log("Erro inferencia: ", err))
   });
 
   // notify users upon disconnection

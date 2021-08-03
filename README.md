@@ -10,15 +10,5 @@
 
 * Run `yarn install` to install dependencies
 
-* You can spin the server by running: 
-    * ```bash
-        RELOAD_APP_ON_FILE_CHANGE=true && \
-        API_PORT=3001 && \
-        REDIS_PORT=6379 && \
-        REDIS_HOST=inference-redis && \
-        FRONT_END_PROTOCOL=http && \
-        FRONT_END_HOST=localhost && \
-        FRONT_END_PORT=3000 && \
-        GRPC_PROTO_PATH=/grcp-pkg/grcppkg/protos/server.proto && \
-        yarn run dev
-        ```
+* You can spin the server by running ```yarn run dev```
+    * Provide the necessary enverionment variables (check the `Dockerfile` for more details)
