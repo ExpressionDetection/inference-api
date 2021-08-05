@@ -4,6 +4,7 @@ const redisClient = new Redis(process.env.REDIS_PORT, process.env.REDIS_HOST);
 const io = require("socket.io")(httpServer, {
   cors: {
     origin: `${process.env.FRONT_END_PROTOCOL}://${process.env.FRONT_END_HOST}:${process.env.FRONT_END_PORT}`,
+    credentials: true
   },
   adapter: require("socket.io-redis")({
     pubClient: redisClient,
@@ -33,7 +34,6 @@ const clientModel1 = new modelService(`${process.env.MODEL_1_HOST}:${process.env
 const clientModel2 = new modelService(`${process.env.MODEL_2_HOST}:${process.env.MODEL_2_PORT}`,
                                        grpc.credentials.createInsecure());
 
-const { setupWorker } = require("@socket.io/sticky");
 import * as crypto from "crypto";
 
 const randomId = () => crypto.randomBytes(8).toString("hex");
@@ -44,7 +44,7 @@ const sessionStore = new RedisSessionStore(redisClient);
 
 
 io.use(async (socket: any, next: any) => {
-  const sessionID = socket.handshake.auth.sessionID;
+  const sessionID = null //socket.handshake.auth.sessionID;
   if (sessionID) {
     const session = await sessionStore.findSession(sessionID);
     if (session) {
@@ -66,6 +66,7 @@ io.on("connection", async (socket: any) => {
   });
 
   // emit session details
+  console.log(`Connected session ${socket.sessionID}`)
   socket.emit("session", {
     sessionID: socket.sessionID,
     userID: socket.userID,
@@ -123,16 +124,15 @@ io.on("connection", async (socket: any) => {
 
   // notify users upon disconnection
   socket.on("disconnect", async () => {
-    const matchingSockets = await io.in(socket.userID).allSockets();
-    const isDisconnected = matchingSockets.size === 0;
-    if (isDisconnected) {
-      // update the connection status of the session
-      sessionStore.saveSession(socket.sessionID, {
-        userID: socket.userID,
-        connected: false,
-      });
-    }
+    console.log(`Disconnected session: ${socket.sessionID}`)
+    // update the connection status of the session
+    sessionStore.saveSession(socket.sessionID, {
+      userID: socket.userID,
+      connected: false,
+    });
   });
 });
 
-setupWorker(io);
+httpServer.listen(process.env.API_PORT, () => {
+  console.log(`Server running on http://localhost:${process.env.API_PORT}`);
+});
