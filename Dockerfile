@@ -13,12 +13,17 @@ ENV MODEL_1_PORT=50051
 
 # Install prerequisites
 RUN apk update && \
-    apk add bash curl git
+    apk add --update --no-cache openssh bash curl git
 
 SHELL ["/bin/bash", "-c"]
 
 WORKDIR /app
 
+COPY .ssh /root/.ssh
 COPY . /app
+
+# Install dependencies
+RUN git clone git@github.com:ExpressionDetection/grcp-pkg.git /grcp-pkg && \
+    cd /app/src && yarn install 
 
 CMD /app/boot.sh
