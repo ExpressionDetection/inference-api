@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Install dependencies
+cd /app/src && yarn install 
+
 if [ $RELOAD_APP_ON_FILE_CHANGE == "true" ]
   then
     # Reload server whenever a file is saved
